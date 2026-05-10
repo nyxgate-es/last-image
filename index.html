@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FITS Viewer</title>
+
+<script src="https://cdn.jsdelivr.net/npm/fitsjs/dist/fits.min.js"></script>
+
+<style>
+    body {
+        margin: 0;
+        background: black;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    canvas {
+        border: 1px solid #333;
+        image-rendering: auto;
+    }
+</style>
+</head>
+<body>
+
+<canvas id="canvas" width="207" height="141"></canvas>
+
+<script>
+
+// =====================================================
+// ID DE LA CARPETA PÚBLICA DE GOOGLE DRIVE
+// =====================================================
+
+const PUBLIC_FOLDER_ID = "1_JtIKxB7aWZLdXAvXyVcFqcNmGUvAU0J";
+
+
+// =====================================================
+// CONFIGURACIÓN
+// =====================================================
+
+const OUTPUT_WIDTH = 207;
+const OUTPUT_HEIGHT = 141;
+
+
+// =====================================================
+// CARGAR FITS
+// =====================================================
+
+async function cargarFITS() {
+
+    // =================================================
+    // LEER HTML DE LA CARPETA PÚBLICA
+    // =================================================
+
+    const folderURL =
+        `https://drive.google.com/embeddedfolderview?id=${PUBLIC_FOLDER_ID}#list`;
+
+    const folderResponse = await fetch(folderURL + '&t=' + Date.now());
+    const html = await folderResponse.text();
+
+
+    // =================================================
+    // EXTRAER ID DEL ÚNICO ARCHIVO FITS
+    // =================================================
+
+    const regex = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const match = html.match(regex);
+
+    if (!match) {
+        throw new Error('No se encontró ningún FITS');
+    }
+
+    const fileId = match[1];
+
+
+    // =================================================
+    // URL DIRECTA DEL FITS
+    // =================================================
+
+    const fitsURL =
+        `https://drive.google.com/uc?export=download&id=${fileId}`;
+
+
+    // =================================================
+    // DESCARGAR FITS
+    // =================================================
+
+    const response = await fetch(fitsURL + '&t=' + Date.now());
+    const buffer = await response.arrayBuffer();
+
+
+    // =================================================
+    // PARSEAR FITS
+    // =================================================
+
+    const fits = new astro.FITSParser(buffer);
+    const hdu = fits.getHDU();
+
+    const data = hdu.data;
+
+    renderizar(data);
+}
+
+
+
+// =====================================================
+// RENDERIZAR
+// =====================================================
+
+function renderizar(data) {
+
+    const width = data.width;
+    const height = data.height;
+
+    const pixels = data.view;
+
+
+    // =================================================
+    // CALCULAR MIN/MAX
+    // =================================================
+
+    let min = Infinity;
+    let max = -Infinity;
+
+    for (let i = 0; i < pixels.length; i++) {
+
+        const v = pixels[i];
+
+        if (!isFinite(v)) continue;
+
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+
+
+    // =================================================
+    // CANVAS TEMPORAL
+    // =================================================
+
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+
+    const tempCtx = tempCanvas.getContext('2d');
+
+    const imageData = tempCtx.createImageData(width, height);
+
+
+    // =================================================
+    // AUTO STRETCH
+    // =================================================
+
+    for (let i = 0; i < pixels.length; i++) {
+
+        let value = pixels[i];
+
+        if (!isFinite(value)) value = min;
+
+        // Normalización
+        value = (value - min) / (max - min);
+
+        // Clamp
+        value = Math.max(0, Math.min(1, value));
+
+        // Gamma suave astronómica
+        value = Math.pow(value, 0.35);
+
+        const c = Math.floor(value * 255);
+
+        const idx = i * 4;
+
+        imageData.data[idx] = c;
+        imageData.data[idx + 1] = c;
+        imageData.data[idx + 2] = c;
+        imageData.data[idx + 3] = 255;
+    }
+
+    tempCtx.putImageData(imageData, 0, 0);
+
+
+    // =================================================
+    // REDIMENSIONAR A 207x141
+    // =================================================
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, OUTPUT_WIDTH, OUTPUT_HEIGHT);
+
+    ctx.drawImage(
+        tempCanvas,
+        0,
+        0,
+        OUTPUT_WIDTH,
+        OUTPUT_HEIGHT
+    );
+}
+
+
+// =====================================================
+// INICIAR
+// =====================================================
+
+cargarFITS();
+
+
+// =====================================================
+// REFRESCO AUTOMÁTICO CADA 5 MINUTOS
+// =====================================================
+
+setInterval(cargarFITS, 5 * 60 * 1000);
+
+</script>
+</body>
+</html>
