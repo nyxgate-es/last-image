@@ -122,19 +122,24 @@ function renderizar(data) {
     // CALCULAR MIN/MAX
     // =================================================
 
-    let min = Infinity;
-    let max = -Infinity;
+    const valores = [];
 
     for (let i = 0; i < pixels.length; i++) {
 
         const v = pixels[i];
 
-        if (!isFinite(v)) continue;
-
-        if (v < min) min = v;
-        if (v > max) max = v;
+        if (isFinite(v)) {
+        valores.push(v);
+        }
     }
 
+    valores.sort((a, b) => a - b);
+
+    const min =
+        valores[Math.floor(valores.length * 0.01)];
+
+    const max =
+        valores[Math.floor(valores.length * 0.995)];
 
     // =================================================
     // CANVAS TEMPORAL
