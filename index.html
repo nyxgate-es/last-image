@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>FITS Viewer</title>
+<title>Última imagen FITS</title>
 
 <script src="https://cdn.jsdelivr.net/npm/fitsjs/dist/fits.min.js"></script>
 
@@ -27,18 +29,25 @@ canvas{
 }
 
 </style>
+
 </head>
+
 <body>
 
-<canvas id="canvas" width="207" height="141"></canvas>
+<canvas
+    id="canvas"
+    width="207"
+    height="141">
+</canvas>
 
 <script>
 
 // =====================================================
-// ID DE LA CARPETA PÚBLICA DE GOOGLE DRIVE
+// URL DE TU APPS SCRIPT
 // =====================================================
 
-const PUBLIC_FOLDER_ID = "1hLHjs0zL92BCQ4YyCOjtxpMaanZFjoNe";
+const PROXY_URL =
+    "https://script.google.com/macros/s/AKfycbzHylK5ICYCi4QPC6IjseIJhyYUcXqnUk_h251pnjaKPqdwveQNnMB0HIhcDNz-rWiP/exec";
 
 
 // =====================================================
@@ -57,56 +66,46 @@ async function cargarFITS() {
 
     try {
 
-        // =============================================
-        // LEER CONTENIDO DE LA CARPETA PÚBLICA
-        // =============================================
-
-        const folderURL =
-            `https://drive.google.com/embeddedfolderview?id=${PUBLIC_FOLDER_ID}#list`;
-
-        const folderResponse =
-            await fetch(folderURL + '&t=' + Date.now());
-
-        const html =
-            await folderResponse.text();
+        console.log("Buscando FITS...");
 
 
         // =============================================
-        // EXTRAER ID DEL ARCHIVO
+        // OBTENER URL ACTUAL DEL FITS
         // =============================================
 
-        const regex =
-            /\/file\/d\/([a-zA-Z0-9_-]+)/;
-
-        const match =
-            html.match(regex);
-
-        if (!match) {
-            throw new Error(
-                "No se encontró archivo FITS"
+        const response =
+            await fetch(
+                PROXY_URL +
+                "?t=" +
+                Date.now()
             );
-        }
-
-        const fileId = match[1];
-
-
-        // =============================================
-        // URL DIRECTA DEL FITS
-        // =============================================
 
         const fitsURL =
-            `https://drive.google.com/uc?export=download&id=${fileId}`;
+            await response.text();
+
+        console.log(
+            "FITS URL:",
+            fitsURL
+        );
 
 
         // =============================================
         // DESCARGAR FITS
         // =============================================
 
-        const response =
-            await fetch(fitsURL + '&t=' + Date.now());
+        const fitsResponse =
+            await fetch(
+                fitsURL +
+                "&t=" +
+                Date.now()
+            );
 
         const buffer =
-            await response.arrayBuffer();
+            await fitsResponse.arrayBuffer();
+
+        console.log(
+            "FITS descargado"
+        );
 
 
         // =============================================
@@ -141,9 +140,20 @@ async function cargarFITS() {
             hdu.data;
 
 
-        console.log("Width:", width);
-        console.log("Height:", height);
-        console.log("Pixels:", pixels.length);
+        console.log(
+            "Width:",
+            width
+        );
+
+        console.log(
+            "Height:",
+            height
+        );
+
+        console.log(
+            "Pixels:",
+            pixels.length
+        );
 
 
         // =============================================
@@ -165,6 +175,7 @@ async function cargarFITS() {
 }
 
 
+
 // =====================================================
 // RENDERIZAR
 // =====================================================
@@ -176,7 +187,7 @@ function renderizar(
 ) {
 
     // =============================================
-    // FILTRAR VALORES
+    // EXTRAER VALORES
     // =============================================
 
     const valores = [];
@@ -204,12 +215,16 @@ function renderizar(
 
     const min =
         valores[
-            Math.floor(valores.length * 0.01)
+            Math.floor(
+                valores.length * 0.01
+            )
         ];
 
     const max =
         valores[
-            Math.floor(valores.length * 0.995)
+            Math.floor(
+                valores.length * 0.995
+            )
         ];
 
 
@@ -238,7 +253,7 @@ function renderizar(
 
 
     // =============================================
-    // CONVERTIR PIXELS
+    // RECORRER PIXELS
     // =============================================
 
     for (let y = 0; y < height; y++) {
@@ -247,7 +262,9 @@ function renderizar(
 
             // FITS invertido verticalmente
             const src =
-                (height - 1 - y) * width + x;
+                (height - 1 - y) *
+                width +
+                x;
 
             let value =
                 pixels[src];
@@ -262,7 +279,8 @@ function renderizar(
             // =====================================
 
             value =
-                (value - min) / (max - min);
+                (value - min) /
+                (max - min);
 
             value =
                 Math.max(
@@ -272,11 +290,13 @@ function renderizar(
 
 
             // =====================================
-            // ASINH STRETCH
+            // STRETCH ASINH
             // =====================================
 
             value =
-                Math.asinh(value * 8) /
+                Math.asinh(
+                    value * 8
+                ) /
                 Math.asinh(8);
 
 
@@ -285,7 +305,9 @@ function renderizar(
             // =====================================
 
             const c =
-                Math.floor(value * 255);
+                Math.floor(
+                    value * 255
+                );
 
 
             // =====================================
@@ -309,7 +331,7 @@ function renderizar(
 
 
     // =============================================
-    // PINTAR CANVAS TEMPORAL
+    // PINTAR TEMPORAL
     // =============================================
 
     tempCtx.putImageData(
@@ -324,7 +346,9 @@ function renderizar(
     // =============================================
 
     const canvas =
-        document.getElementById('canvas');
+        document.getElementById(
+            'canvas'
+        );
 
     const ctx =
         canvas.getContext('2d');
@@ -353,7 +377,12 @@ function renderizar(
         OUTPUT_WIDTH,
         OUTPUT_HEIGHT
     );
+
+    console.log(
+        "Imagen renderizada"
+    );
 }
+
 
 
 // =====================================================
@@ -363,8 +392,9 @@ function renderizar(
 cargarFITS();
 
 
+
 // =====================================================
-// REFRESCO AUTOMÁTICO
+// AUTOREFRESCO
 // =====================================================
 
 setInterval(
